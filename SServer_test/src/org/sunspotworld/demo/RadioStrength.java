@@ -93,7 +93,7 @@ public class RadioStrength extends MIDlet {
     private ITriColorLED statusLED = leds.getLED(0);
     private ILightSensor light = (ILightSensor)Resources.lookup(ILightSensor.class);
 
-    private LEDColor red  = new LEDColor(50,0,0);
+    private LEDColor red = new LEDColor(50,0,0);
     
     private LEDColor green = new LEDColor(0,20,0);
     private LEDColor blue  = new LEDColor(0,0,50);
