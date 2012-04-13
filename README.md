@@ -15,3 +15,14 @@ We are mainly studying three different channel allocation schemes :
 
 We will be designing each of the schemes, and study the performance of the system with each scheme and provide with an optimized solution.
 
+_Description about files:_
+
+_CClient_test_ : is for testing the connection between client and server for the centralized scheme
+
+_SServer_test_ : is for testing the connection between client and server for the centralized scheme
+
+_RS_Dist_Rx_ : This is the receiver code for the distributed scheme
+
+_RS_Dist_Tx_ : This is the transmitter code for the distributed scheme
+
+_Jammer_ : This is the code for the jammer nodes, that serve for external interference
