@@ -26,3 +26,6 @@ _RS_Dist_Rx_ : This is the receiver code for the distributed scheme
 _RS_Dist_Tx_ : This is the transmitter code for the distributed scheme
 
 _Jammer_ : This is the code for the jammer nodes, that serve for external interference
+
+
+Reference : The RadioStrength Demo provided with the sunSPOT sdk 
