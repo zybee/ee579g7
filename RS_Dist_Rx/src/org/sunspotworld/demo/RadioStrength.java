@@ -397,6 +397,7 @@ public class RadioStrength extends MIDlet {
                             statusLED.setColor(getGreen());
                             statusLED.setOn();
                             pause(1000);
+                            statusLED.setOff();
                             //send a probe reply back
                             try
                             {

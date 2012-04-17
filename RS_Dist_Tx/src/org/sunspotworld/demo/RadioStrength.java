@@ -331,9 +331,6 @@ public class RadioStrength extends MIDlet {
     private int probe() {
         
         RadiogramConnection txConn = null;
-        RadiogramConnection rcvConn = null;
-        int currentChannel = channel;
-        int currentRssi = 0;
         
         channel = availChannels[0];
         Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
@@ -342,86 +339,35 @@ public class RadioStrength extends MIDlet {
         int selectedRssi = 0;
         int selectedChannel = 0;
         int selectedLQA = 0;
-        
-        try
+               
+        while(i < 3) 
         {
-            rcvConn = (RadiogramConnection)Connector.open("radiogram://:" + BROADCAST_PORT);
-            rcvConn.setTimeout(PACKET_INTERVAL - 5);
-            Radiogram rdg = (Radiogram)rcvConn.newDatagram(rcvConn.getMaximumLength());
+            try 
+            {   
+                txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
+                txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
+                Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
+
+                xdg.reset();
+                xdg.writeByte(PROBE_PACKET);
+                xdg.writeInt(power);
+                txConn.send(xdg);
+
+                if(channel == 26)
+                    break;
+
+                ledsInUse = true;
+                displayNumber(channel, getGreen());  
+                pause(PACKET_INTERVAL);//wait till little more than timeout period to receive probe reply
+                pause(1000); 
+                displayNumber(0, green);
                 
-            while(true) 
-            {
-                try 
-                {   
-                    txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
-                    txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
-                    Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
+                channel++;
+                i++;
+                Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
 
-                    xdg.reset();
-                    xdg.writeByte(PROBE_PACKET);
-                    xdg.writeInt(power);
-                    txConn.send(xdg);
-                    try {
-                        rdg.reset();
-                        rcvConn.receive(rdg);           // listen for a packet
-                        byte packetType = rdg.readByte();
-                        if (packetType == PROBE_REPLY_PACKET) {
-                            int pow = rdg.readInt();
-                            rssi[i] = rdg.getRssi();
-                            lqa[i] = rdg.getLinkQuality();
-                            if(channel == currentChannel)
-                                currentRssi = rssi[i];
-                        }
-                        ledsInUse = true;
-                        displayLevel(rssi[i], 40, -50, getRed());
-                        statusLED.setColor(getGreen());     // Red = not active
-                        statusLED.setOn();
-                        pause(1000);
-                        displayNumber(0, red);  
-                        statusLED.setOff();
-                    }
-                    catch (TimeoutException tex) {//-----------IF NOTHING RECEIVED, CHANNEL COULD BE TOO BAD-------
-                        //if no response within timeout, do not wait further.
-                        //check the next channel strength
-                        rssi[i] = 60; //indicates that no one else is using this channel
-                        lqa[i] = 255;
-                        
-                        statusLED.setColor(getBlue());     // Red = not active
-                        statusLED.setOn();
-                        pause(1000);
-                        statusLED.setOff();
-                    }
-
-                    if(channel == 26)
-                        break;
-
-                    channel++;
-                    i++;
-                    Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-
-                    ledsInUse = true;
-                    displayNumber(channel, getGreen());                
-                    pause(1000); 
-                    displayNumber(0, green);
-
-                }
-                catch (IOException e){
-                }
             }
-        }
-        catch(IOException tex){
-            
-        }
-        finally {
-            if (rcvConn != null) {
-                try {
-                    rcvConn.close();
-                } catch (IOException ex) { }
-            }
-            if (txConn != null) {
-                try {
-                    txConn.close();
-                } catch (IOException ex) { }
+            catch (IOException e){
             }
         }
                             
@@ -437,9 +383,6 @@ public class RadioStrength extends MIDlet {
                 selectedLQA = lqa[j];
             }
         }
-        
-        //if(selectedChannel == currentChannel)
-          //  return -1;
         
         return selectedChannel;           
     }
@@ -485,41 +428,23 @@ public class RadioStrength extends MIDlet {
                         request = requestToChange;
                         requestToChange = 0;
                     }
-                        if(request == 1)
-                        {
-                            int presentChannel = channel;
-                            changeToChannel = probe();
+                    if(request == 1)
+                    {
+                        int presentChannel = channel;
+                        changeToChannel = probe();
 
-                            //send message to change on original channel frequency
-                            channel = presentChannel;
-                            Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
+                        //send message to change on original channel frequency
+                        channel = presentChannel;
+                        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
 
-                            xdg.reset();
-                            xdg.writeByte(CHANNEL_CHANGE_PACKET);
-                            xdg.writeInt(changeToChannel);
-                            txConn.send(xdg);
-                            channel = changeToChannel;
-                            Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
+                        xdg.reset();
+                        xdg.writeByte(CHANNEL_CHANGE_PACKET);
+                        xdg.writeInt(changeToChannel);
+                        txConn.send(xdg);
+                        channel = changeToChannel;
+                        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
 
-                           /* synchronized(lock1){
-                                notifyAll();
-                            }
-                            */
-                    
-                            statusLED.setColor(getRed());
-                            statusLED.setOn();
-                            pause(1000);
-                            statusLED.setOff();
-                            statusLED.setColor(getGreen());
-                            statusLED.setOn();
-                            pause(1000);
-                            statusLED.setOff();
-                            statusLED.setColor(getBlue());
-                            statusLED.setOn();
-                            pause(1000);
-                            statusLED.setOff();
-
-                            break;
+                        break;
                     }
                 }
             } catch (IOException ex) {
@@ -545,6 +470,8 @@ public class RadioStrength extends MIDlet {
         int minQ = 100;
         int q = 0;
         int nothing = 0;
+        int i = -1;
+        
         while (recvDo) {
             try {
                 rcvConn = (RadiogramConnection)Connector.open("radiogram://:" + BROADCAST_PORT);
@@ -561,26 +488,49 @@ public class RadioStrength extends MIDlet {
                             led.setOn();
                             statusLED.setColor(getGreen());
                             statusLED.setOn();
+                            pause(1000);
                             int recvRssi = rdg.readInt();
                             q = rdg.getRssi();
 
                             synchronized(this){
                                 requestToChange = 1;
                             }
-                            synchronized(lock1){
-                                try {
-                                    wait();
-                                }
-                                catch(InterruptedException e){
-                                }
-                            }
                             
                             nothing = 0;
                             led.setOff();
                         }
+                        if (packetType == PROBE_REPLY_PACKET) {
+                            i++;
+                            int pow = rdg.readInt();
+                            rssi[i] = rdg.getRssi();
+                            lqa[i] = rdg.getLinkQuality();
+                            
+                            ledsInUse = true;
+                            displayLevel(rssi[i], 40, -50, getRed());
+                            pause(1000);
+                            displayNumber(0,red); 
+                            statusLED.setColor(getGreen());     // Red = not active
+                            statusLED.setOn();
+                            pause(1000);
+                            statusLED.setOff();
+                            if(i == 2)
+                                i = -1;
+                        }
                     } catch (TimeoutException tex) {        // timeout - display no packet received
-                        statusLED.setColor(getRed());
-                        statusLED.setOn();
+                        
+                        if(i != -1)
+                        {
+                            statusLED.setColor(getBlue());
+                            statusLED.setOn();
+                            pause(1000);
+                            statusLED.setOff();
+                            rssi[i] = 60;
+                            lqa[i] = 255;
+                            i++;
+                            if(i == 3)
+                                i = -1;
+                        }
+                        
                         nothing++;
                         if (nothing > 2 * PACKETS_PER_SECOND && !ledsInUse) {
                             displayLevel(-50, 40, -50, getBlue());  // if nothing received eventually turn off LEDs
