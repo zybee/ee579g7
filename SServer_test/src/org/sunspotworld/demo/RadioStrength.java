@@ -433,6 +433,7 @@ public class RadioStrength extends MIDlet {
         while(recvDo)
         {
         try {
+            System.out.println("Waiting for a packet");
             conn.receive(dg);
             String question = dg.readUTF();
             dgreply.reset(); // reset stream pointer
