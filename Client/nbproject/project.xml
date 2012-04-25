@@ -3,8 +3,8 @@
     <type>org.netbeans.modules.ant.freeform</type>
     <configuration>
         <general-data xmlns="http://www.netbeans.org/ns/freeform-project/1">
-            <!--Do not use Project Properties customizer when editing this file manually.-->
-            <name>CClient_test</name>
+            <!-- Do not use Project Properties customizer when editing this file manually. -->
+            <name>Client</name>
             <properties>
                 <property-file>${user.home}/.sunspot.properties</property-file>
                 <property-file>build.properties</property-file>
@@ -32,11 +32,6 @@
                     <target>jar-app</target>
                 </action>
             </ide-actions>
-            <export>
-                <type>folder</type>
-                <location>build</location>
-                <build-target>jar-app</build-target>
-            </export>
             <view>
                 <items>
                     <source-folder style="packages">

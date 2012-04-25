@@ -472,9 +472,9 @@ public class RadioStrength extends MIDlet {
             displayNumber(0, getBlue());
             byte packetType = forw_rep.readByte();
             if (packetType == CHANNEL_CHANGE_PACKET) {
-                int received_previous_channel = forw_rep.readInt();
-                if(received_previous_channel == currentChannel)
-                    selectedChannel = forw_rep.readInt();
+                int received_previous_channel = forw_rep.readInt();/////????
+                if(received_previous_channel == currentChannel)//??
+                    selectedChannel = forw_rep.readInt();//??
             }
             ledsInUse = true;
             displayNumber(selectedChannel, getBlue());                

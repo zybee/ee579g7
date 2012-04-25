@@ -1,4 +1,4 @@
-/* TRANSMITTER CODE
+/* RECEIVER CODE
  * Copyright (c) 2006-2010 Sun Microsystems, Inc.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,7 +36,6 @@ import com.sun.spot.resources.transducers.ITriColorLEDArray;
 import com.sun.spot.io.j2me.radiogram.Radiogram;
 import com.sun.spot.io.j2me.radiogram.RadiogramConnection;
 
-import java.lang.Object;
 import java.io.IOException;
 import javax.microedition.io.Connector;
 import javax.microedition.io.Datagram;
@@ -86,7 +85,6 @@ public class RadioStrength extends MIDlet {
     private static final int PROBE_REPLY_PACKET     = 67;
     private static final int CHANNEL_CHANGE_REQUEST = 99;
     private static final int CHANNEL_CHANGE_PACKET  = 100;
-    
     private static final int PACKETS_PER_SECOND     = 5;
     private static final int PACKET_INTERVAL        = 1000 / PACKETS_PER_SECOND;
     private static final int BOOST_LED_THRESHOLD    = 600;
@@ -110,17 +108,10 @@ public class RadioStrength extends MIDlet {
     private boolean recvDo = true;
     private boolean ledsInUse = false;
     private boolean boostLEDs = false;
-    private boolean maxBoostLEDs = false;
+    private boolean maxBoostLEDs = false; 
     
-    private int rssi[] = {0, 0, 0};
-    private int lqa[] = {0,0,0};
-    private int availChannels[] = {24,25,26};
-    
-    private int lowThresholdRssi = -30;
-    private int lowThresholdLQA = 40;
-    private int requestToChange = 0;
-    private int probe_flag = 0;
-    private int goAhead = 0;
+    private int lowThresholdRssi = 0;
+    private int lowThresholdLQA = 50;
     
     /**
      * Return bright or dim red.
@@ -195,11 +186,11 @@ public class RadioStrength extends MIDlet {
         System.out.println("Radio Signal Strength Test (version " + VERSION + ")");
         System.out.println("Packet interval = " + PACKET_INTERVAL + " msec");
         
-        new Thread() {
+      /*  new Thread() {
             public void run () {
                 xmitLoop();
             }
-        }.start();                      // spawn a thread to transmit packets
+        }.start();   */                   // spawn a thread to transmit packets
         new Thread() {
             public void run () {
                 recvLoop();
@@ -280,12 +271,12 @@ public class RadioStrength extends MIDlet {
         while (true) {
             pause(100);         // check every 0.1 seconds
             int cnt = 0;
-            if (sw2.isClosed()) {
+            if (sw1.isClosed()) {
                 ledsInUse = true;
                 displayNumber(channel, getGreen());
                 pause(1000);    // wait 1.0 second
-                if (sw2.isClosed()) {
-                    while (sw2.isClosed()) {
+                if (sw1.isClosed()) {
+                    while (sw1.isClosed()) {
                         channel++;
                         if (channel > 24) { cnt = 0; }
                         if (channel > 26) { channel = 11; }
@@ -298,7 +289,7 @@ public class RadioStrength extends MIDlet {
                 pause(1000);    // wait 1.0 second
                 displayNumber(0, blue);
             }
-           /* if (sw2.isClosed()) {
+            if (sw2.isClosed()) {
                 cnt = 0;
                 ledsInUse = true;
                 displayNumber(power, getRed());
@@ -316,173 +307,9 @@ public class RadioStrength extends MIDlet {
                 }
                 pause(1000);    // wait 1.0 second
                 displayNumber(0, blue);
-            }*/
+            }
             ledsInUse = false;
             checkLightSensor();
-        }
-    }
-
-    /* Function to probe other channels and check the quality of that channel. 
-     * Save the information locally
-     */    
-    private int probe() {
-        
-        RadiogramConnection txConn = null;
-        
-        channel = availChannels[0];
-        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-        
-        int selectedRssi = 0;
-        int selectedChannel = 0;
-        int selectedLQA = 0;
-               
-        synchronized(this){ //indicate that probing has started
-            probe_flag = 1;
-        }
-        
-        while(true) 
-        {
-            try 
-            {   
-                txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
-                txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
-                Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
-
-                xdg.reset();
-                xdg.writeByte(PROBE_PACKET);
-                xdg.writeInt(power);
-                txConn.send(xdg);
-
-                //now that packet is sent, indicate to receiver thread to listen for a reply
-                synchronized(this){
-                    goAhead = 1;
-                }
-                
-                ledsInUse = true;
-                displayNumber(channel, getGreen());  
-                //pause(PACKET_INTERVAL);//wait till little more than timeout period to receive probe reply
-                pause(1000); 
-                displayNumber(0, green);
-                
-                while(true)
-                {
-                    synchronized(this){
-                        if(goAhead == 0)
-                            break;
-                    }
-                    pause(1000);
-                }
-                
-                if(channel == 26)
-                    break;
-                
-                channel++;
-                Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-            }
-            catch (IOException e){
-            }
-        }
-                  
-        synchronized(this){
-            probe_flag = 0;
-        }
-        
-        selectedLQA = lqa[0];
-        selectedRssi = rssi[0];
-        selectedChannel = availChannels[0];
-        for(int j = 0; j < 3; j++)
-        {           
-            if(rssi[j] > selectedRssi || lqa[j] > selectedLQA)
-            {
-                selectedRssi = rssi[j];
-                selectedChannel = availChannels[j];
-                selectedLQA = lqa[j];
-            }
-        }
-        
-        return selectedChannel;           
-    }
-    
-    /**
-     * Loop to continually transmit packets using current power level & channel setting.
-     */
-    private void xmitLoop () {
-        ILed led = Spot.getInstance().getGreenLed();
-        RadiogramConnection txConn = null;
-        xmitDo = true;
-        
-        int changeToChannel = 0;
-        int request = 0;
-        
-        while (xmitDo) {
-            try {
-                txConn = null;
-                txConn = (RadiogramConnection)Connector.open("radiogram://0014.4F01.0000.7E5B:" + BROADCAST_PORT);
-                txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
-                Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
-                long count = 0;
-                boolean ledOn = false;               
-                                                                
-                while (xmitDo) {
-                    led.setOn();
-                    long nextTime = System.currentTimeMillis() + PACKET_INTERVAL;
-                    count++;
-                    if (count >= Long.MAX_VALUE) { count = 0; }
-                    xdg.reset();
-                    xdg.writeByte(RADIO_TEST_PACKET);
-                    xdg.writeInt(power);
-                    xdg.writeLong(count);
-                    txConn.send(xdg);
-                    led.setOff();
-                    long delay = (nextTime - System.currentTimeMillis()) - 2;
-                    if (delay > 0) {
-                        pause(delay);
-                    }
-                    
-                    synchronized(this) {
-                        request = requestToChange;
-                        requestToChange = 0;
-                    }
-                    
-                    if(request == 1)
-                    {
-                        ledsInUse = true;
-                        displayNumber(31, getGreen()); 
-                        pause(500);
-                        displayNumber(31, getRed()); 
-                        pause(500);
-                        displayNumber(31, getBlue()); 
-                        pause(500);
-                        displayNumber(0, getBlue()); 
-                        
-                        int presentChannel = channel;
-                        changeToChannel = probe();
-                        synchronized(this){
-                            goAhead = 0;// Its transmitter thread's turn
-                        }
-                        //send message to change on original channel frequency
-                        channel = presentChannel;
-                        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-
-                        xdg.reset();
-                        xdg.writeByte(CHANNEL_CHANGE_PACKET);
-                        xdg.writeInt(changeToChannel);
-                        txConn.send(xdg);
-                        channel = changeToChannel;
-                        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-
-                        break;
-                    }
-                }
-            } catch (IOException ex) {
-                // ignore
-            } finally {
-                if (txConn != null) {
-                    try {
-                        txConn.close();
-                    } catch (IOException ex) { }
-                }
-            }
         }
     }
     
@@ -496,9 +323,8 @@ public class RadioStrength extends MIDlet {
         int maxQ = -100;
         int minQ = 100;
         int q = 0;
+        int p = 0;
         int nothing = 0;
-        int i = -1;
-        int probeValue = 0;
         while (recvDo) {
             try {
                 rcvConn = (RadiogramConnection)Connector.open("radiogram://:" + BROADCAST_PORT);
@@ -511,95 +337,101 @@ public class RadioStrength extends MIDlet {
                         rdg.reset();
                         rcvConn.receive(rdg);           // listen for a packet
                         byte packetType = rdg.readByte();
-                        if (packetType == CHANNEL_CHANGE_REQUEST) {
+                        if (packetType == CHANNEL_CHANGE_PACKET)
+                        {
+                            statusLED.setColor(getBlue());
+                            statusLED.setOn();
+                            channel = rdg.readInt();
+                            Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
+                            pause(1000);
+                            statusLED.setOff();
+                            
+                            System.out.println("Changed to channel "+channel);
+                        }
+                        if (packetType == RADIO_TEST_PACKET) {
                             led.setOn();
+                            statusLED.setColor(getGreen());
+                            statusLED.setOn();
+                            int pow = rdg.readInt();
+                            q = rdg.getRssi();
+                            p = rdg.getLinkQuality();
+                            
+                            if(q < lowThresholdRssi || p < lowThresholdLQA)//needs to change channel
+                            {
+                                try
+                                {
+                                    RadiogramConnection txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
+                                    txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
+                                    Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
+
+                                    xdg.reset();
+                                    xdg.writeByte(CHANNEL_CHANGE_REQUEST);
+                                    xdg.writeInt(q);
+                                    txConn.send(xdg);
+                                    
+                                    System.out.println("Sent CHANNEL_CHANGE_REQUEST");
+                                    
+                                    statusLED.setColor(getBlue());
+                                    statusLED.setOn();
+                                    pause(1000);
+                                    statusLED.setOff();
+                                    
+                                   /* if (txConn != null) {
+                                        try {
+                                            txConn.close();
+                                        } catch (IOException ex) { }
+                                    }*/
+                                }
+                                catch (IOException ex) {
+                                    // ignore
+                                }
+                            }
+                            
+                            if (!ledsInUse) {
+                                displayLevel(q, 40, -50, getBlue());
+                            }
+                            if (q > maxQ) {
+                                maxQ = q;
+                                System.out.println("Max = " + maxQ + " power = " + pow);
+                            }
+                            if (q < minQ) {
+                                minQ = q;
+                                System.out.println("Min = " + minQ + " power = " + pow);
+                            }
+                            nothing = 0;
+                            led.setOff();
+                        }
+                        
+                        if(packetType == PROBE_PACKET)
+                        {
                             statusLED.setColor(getGreen());
                             statusLED.setOn();
                             pause(1000);
                             statusLED.setOff();
-                            int recvRssi = rdg.readInt();
-                            q = rdg.getRssi();
+                            //send a probe reply back
+                            try
+                            {
+                                RadiogramConnection txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
+                                txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
+                                Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
 
-                            synchronized(this){
-                                requestToChange = 1;
+                                xdg.reset();
+                                xdg.writeByte(PROBE_REPLY_PACKET);
+                                xdg.writeInt(power);
+                                txConn.send(xdg);
+                                
+                                System.out.println("Sent PROBE_REPLY_PACKET");
+                            }
+                            catch (IOException ex) {
+                                // ignore
                             }
                             
-                            nothing = 0;
-                            led.setOff();
-                            
-                            while(true)
-                            {
-                                synchronized(this){
-                                    if(goAhead == 1)
-                                        break;
-                                }
-                                pause(1000);
-                            }
-                            
-                        }
-                        if (packetType == PROBE_REPLY_PACKET) {
-                            i++;
-                            int pow = rdg.readInt();
-                            rssi[i] = rdg.getRssi();
-                            lqa[i] = rdg.getLinkQuality();
-                            
-                            ledsInUse = true;
-                            displayLevel(rssi[i], 40, -50, getRed());
-                            pause(1000);
-                            displayNumber(0,red); 
-                         /*   statusLED.setColor(getGreen());     // Red = not active
-                            statusLED.setOn();
-                            pause(1000);
-                            statusLED.setOff();*/
-                            if(i == 2)
-                                i = -1;
-                            
-                            synchronized(this){
-                                goAhead = 0;
-                            }
-                            
-                            while(true)
-                            {
-                                synchronized(this){
-                                    if(goAhead == 1)
-                                        break;
-                                }
-                                pause(1000);
-                            }
                         }
                     } catch (TimeoutException tex) {        // timeout - display no packet received
-                        
-                        synchronized(this){
-                            probeValue = probe_flag;
-                        }
-                        if(probeValue == 1)
-                        {
-                            i++;
-                            rssi[i] = 60;
-                            lqa[i] = 255;
-                            if(i == 2)
-                                i = -1;
-                            synchronized(this){
-                                goAhead = 0;// zero means that the transmitter thread has permission to run
-                            }
-                            while(true)
-                            {
-                                synchronized(this){
-                                    if(goAhead == 1)// one means that the receiver thread has permission to run
-                                        break;
-                                }
-                                pause(1000);
-                            }
-                            
-                            statusLED.setColor(getBlue());
-                            statusLED.setOn();
-                            pause(1000);
-                            statusLED.setOff();
-                            
-                        }
-                        
+                        statusLED.setColor(getRed());
+                        statusLED.setOn();
                         nothing++;
-                        if (nothing > 2 * PACKETS_PER_SECOND && !ledsInUse) {
+                       if (nothing > 2 * PACKETS_PER_SECOND && !ledsInUse) {
                             displayLevel(-50, 40, -50, getBlue());  // if nothing received eventually turn off LEDs
                         }
                     }
