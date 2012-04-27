@@ -1,25 +1,5 @@
-/* TRANSMITTER CODE
- * Copyright (c) 2006-2010 Sun Microsystems, Inc.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to 
- * deal in the Software without restriction, including without limitation the 
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
- * sell copies of the Software, and to permit persons to whom the Software is 
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in 
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
- * DEALINGS IN THE SOFTWARE.
- */
-
+/* TRANSMITTER CODE*/
+ 
 package org.sunspotworld.demo;
 
 import com.sun.spot.peripheral.Spot;
@@ -44,38 +24,7 @@ import javax.microedition.io.Datagram;
 import javax.microedition.midlet.MIDlet;
 import javax.microedition.midlet.MIDletStateChangeException;
 
-/**
- * Routines to turn two SPOTs into radio signal strength meters.
- *
- * Application to listen for radio broadcasts from another SPOT and to
- * display the radio signal strength.
- *<p>
- * The SPOT uses the LEDs to display its status as follows:
- *<p>
- * LED 0:
- *<ul>
- *<li> Red = missed an expected packet
- *<li> Green = received a packet
- *</ul>
- * LED 1-7:
- *<ul>
- *<li> Blue = signal strength meter for RSSI of received packets
- *<li> Red  = transmit power level (in binary) 0 (min) to 32 (max)
- *<li> Green = channel number (in binary) 11 (min) to 26 (max)
- *</ul>
- *<p>
- * The SPOT uses the switches to change/view the channel and power level:
- *<ul>
- *<li> SW0 = channel select
- *<li> SW1 = power select 
- *</ul>
- *
- * Note: if the channel is changed then the SPOT will not receive any OTA commands.
- * In that case just reboot the SPOT to switch back to the default radio channel.
- *
- * @author Ron Goldman
- * date: June 15, 2006 
- */
+
 public class RadioStrength extends MIDlet {
 
     private static final String VERSION = "1.0";
@@ -133,30 +82,12 @@ public class RadioStrength extends MIDlet {
     private LEDColor getRed() {
         return boostLEDs ? LEDColor.RED : red;
     }
-
-    /**
-     * Return bright or dim green.
-     *
-     * @returns appropriately bright green LED settings
-     */
-    private LEDColor getGreen() {
+     private LEDColor getGreen() {
         return boostLEDs ? LEDColor.GREEN : green;
     }
-
-    /**
-     * Return bright or dim blue.
-     *
-     * @returns appropriately bright blue LED settings
-     */
     private LEDColor getBlue() {
         return maxBoostLEDs ? white : boostLEDs ? LEDColor.BLUE : blue;
     }
-
-    /**
-     * Check if in really bright environment.
-     *
-     * @returns true if it's really bright, false if not so bright
-     */
     private void checkLightSensor() {
         try {
             int val = light.getValue();
@@ -164,22 +95,12 @@ public class RadioStrength extends MIDlet {
             maxBoostLEDs = (val > MAX_BOOST_LED_THRESHOLD);
         } catch (IOException ex) { }
     }
-    
-    /**
-     * Pause for a specified time.
-     *
-     * @param time the number of milliseconds to pause
-     */
     private void pause (long time) {
         try {
             Thread.currentThread().sleep(time);
         } catch (InterruptedException ex) { /* ignore */ }
     }
-    
-
-    /**
-     * Initialize any needed variables.
-     */
+     /* Initialize any needed variables.*/
     private void initialize() { 
         checkLightSensor();
         statusLED.setColor(getRed());     // Red = not active
@@ -189,11 +110,7 @@ public class RadioStrength extends MIDlet {
         rpm.setPanId(PAN_ID);
         rpm.setOutputPower(power - 32);
     }
-    
-
-    /**
-     * Main application run loop.
-     */
+     /* Main application run loop.*/
     private void run() {
         System.out.println("Radio Signal Strength Test (version " + VERSION + ")");
         System.out.println("Packet interval = " + PACKET_INTERVAL + " msec");
@@ -211,12 +128,9 @@ public class RadioStrength extends MIDlet {
         respondToSwitches();            // this thread will handle User input via switches
     }
 
-    /**
-     * Display a number (base 2) in LEDs 1-7
-     *
-     * @param val the number to display
-     * @param col the color to display in LEDs
-     */
+    /*Display a number (base 2) in LEDs 1-7
+     *@param val the number to display
+     * @param col the color to display in LED*/
     private void displayNumber(int val, LEDColor col) {
         for (int i = 0, mask = 1; i < 7; i++, mask <<= 1) {
             leds.getLED(7-i).setColor(col);
@@ -224,29 +138,11 @@ public class RadioStrength extends MIDlet {
         }
     }
     
-    /**
-     * Auxiliary routine to scale the brightness of the LED so it is more in 
-     * keeping with how people perceive brightness.
-     *
-     * @param x the raw value to display
-     * @param col the maximum LED brightness to use
-     * @param perLed the maximum value to display
-     * @returns the scaled brightness to actually display
-     */
     private int lightValue (int x, int col, int perLed){
         if (x <= 0 || col <= 0) return 0;
         if (x >= perLed) return col;
         return  ( x * x * x * col ) /(perLed * perLed * perLed);
     }
-
-    /**
-     * Display a vU like level in LEDs 1-7
-     *
-     * @param val the level to display
-     * @param max the maximum value expected
-     * @param min the minimum value expected
-     * @param col the color to display in LEDs
-     */
     private void displayLevel(int val, int max, int min, LEDColor col) {
         int LEDS_TO_USE = 7;
         int MAX_LED = 7;
@@ -266,19 +162,6 @@ public class RadioStrength extends MIDlet {
             }
         }
     }
-
-    /**
-     * Loop waiting for user to press a switch.
-     *<p>
-     * Since ISwitch.waitForChange() doesn't really block we can loop on both switches ourself.
-     *<p>
-     * Detect when either switch is pressed by displaying the current value.
-     * After 1 second, if it is still pressed start cycling through values every 0.5 seconds.
-     * After cycling through 4 new values speed up the cycle time to every 0.3 seconds.
-     * When cycle reaches the max value minus one revert to slower cycle speed.
-     * Ignore other switch transitions for now.
-     *
-     */
     private void respondToSwitches() {
         while (true) {
             pause(100);         // check every 0.1 seconds
@@ -306,17 +189,13 @@ public class RadioStrength extends MIDlet {
             checkLightSensor();
         }
     }
-
     /* Function to probe other channels and check the quality of that channel. 
-     * Save the information locally
-     */    
+     * Save the information locally*/    
     private int probe(int currentChannel) {
         
         RadiogramConnection txConn = null;
-        
         channel = availChannels[0];
         Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
-        
         int selectedRssi = 0;
         int selectedChannel = 0;
         int selectedLQA = 0;
@@ -324,7 +203,6 @@ public class RadioStrength extends MIDlet {
         synchronized(this){ //indicate that probing has started
             probe_flag = 1;
         }
-        
         while(true) 
         {
             try 
@@ -332,25 +210,19 @@ public class RadioStrength extends MIDlet {
                 txConn = (RadiogramConnection)Connector.open("radiogram://broadcast:" + BROADCAST_PORT);
                 txConn.setMaxBroadcastHops(1);      // don't want packets being rebroadcasted
                 Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
-
                 xdg.reset();
                 xdg.writeByte(PROBE_PACKET);
                 xdg.writeInt(power);
                 txConn.send(xdg);
-
                 System.out.println("Probing channel "+channel+" now");
-                
-                //now that packet is sent, indicate to receiver thread to listen for a reply
-                synchronized(this){
+                synchronized(this){//now that packet is sent, indicate to receiver thread to listen for a reply
                     goAhead = 1;
                 }
-                
                 ledsInUse = true;
                 displayNumber(channel, getGreen());  
                 //pause(PACKET_INTERVAL);//wait till little more than timeout period to receive probe reply
                 pause(1000); 
                 displayNumber(0, green);
-                
                 while(true)
                 {
                     synchronized(this){
@@ -381,31 +253,26 @@ public class RadioStrength extends MIDlet {
                         String ourAddress = System.getProperty("IEEE_ADDRESS");
                         ILightSensor lightSensor = (ILightSensor) Resources.lookup(ILightSensor.class);
                         ITriColorLED led1 = (ITriColorLED) Resources.lookup(ITriColorLED.class, "LED7");
-        
                         System.out.println("Starting sensor sampler application on " + ourAddress + " ...");
-
                         // Listen for downloads/commands over USB connection
                         new com.sun.spot.service.BootloaderListenerService().getInstance().start();
-
                         try {
                             // Open up a broadcast connection to the host port
                             // where the 'on Desktop' portion of this demo is listening
+                            System.out.println("Trying to connect to the server");
                             rCon = (RadiogramConnection) Connector.open("radiogram://0014.4F01.0000.7FD3:" + HOST_PORT);
                             rCon.setMaxBroadcastHops(3);
-                            forw_req = rCon.newDatagram(txConn.getMaximumLength());  
+                            forw_req = rCon.newDatagram(rCon.getMaximumLength());  
+                            
                         } catch (Exception e) {
                             System.err.println("Caught " + e + " in connection initialization.");
                             notifyDestroyed();
                         }
-
-
                         try {
                             // Get the current time and sensor reading
                             long now = System.currentTimeMillis();
                             int reading = lightSensor.getValue();
-
-                            // Flash an LED to indicate a sampling event
-                            led1.setRGB(255, 255, 255);
+                            led1.setRGB(255, 255, 255); // Flash an LED to indicate a sampling event
                             displayNumber(0, getBlue());
                             led1.setOn();
                             Utils.sleep(50);
@@ -420,13 +287,13 @@ public class RadioStrength extends MIDlet {
             forw_req.reset();
             forw_req.writeByte(CHANNEL_CHANGE_REQUEST);
             forw_req.writeInt(currentChannel);
-            /*for(int j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 System.out.println("sending data");
                 forw_req.writeInt(rssi[j]);
                 forw_req.writeInt(j+24);
-            }*/
-            txConn.send(forw_req);
+            }
+            rCon.send(forw_req);
            
             //all data written to the central controller   
                            
