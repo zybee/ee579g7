@@ -376,11 +376,11 @@ public class RadioStrength extends MIDlet {
                                     pause(1000);
                                     statusLED.setOff();
                                     
-                                   /* if (txConn != null) {
+                                    if (txConn != null) {
                                         try {
                                             txConn.close();
                                         } catch (IOException ex) { }
-                                    }*/
+                                    }
                                 }
                                 catch (IOException ex) {
                                     // ignore
@@ -388,7 +388,7 @@ public class RadioStrength extends MIDlet {
                             }
                             
                             if (!ledsInUse) {
-                                displayLevel(q, 40, -50, getRed());//was blue before
+                                displayLevel(q, 40, -50, getBlue());//was blue before
                             }
                             if (q > maxQ) {
                                 maxQ = q;
@@ -421,10 +421,17 @@ public class RadioStrength extends MIDlet {
                                 txConn.send(xdg);
                                 
                                 System.out.println("Sent PROBE_REPLY_PACKET");
+                                
+                                if (txConn != null) {
+                                        try {
+                                            txConn.close();
+                                        } catch (IOException ex) { }
+                                    }
                             }
                             catch (IOException ex) {
                                 // ignore
                             }
+                            
                             
                         }
                     } catch (TimeoutException tex) {        // timeout - display no packet received
@@ -432,7 +439,7 @@ public class RadioStrength extends MIDlet {
                         statusLED.setOn();
                         nothing++;
                        if (nothing > 2 * PACKETS_PER_SECOND && !ledsInUse) {
-                            displayLevel(-50, 40, -50, getRed());  // WAS BLUE BEFORE if nothing received eventually turn off LEDs
+                            displayLevel(-50, 40, -50, getBlue());  // WAS BLUE BEFORE if nothing received eventually turn off LEDs
                         }
                     }
                 }
