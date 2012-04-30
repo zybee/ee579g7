@@ -339,7 +339,7 @@ public class RadioStrength extends MIDlet {
                         byte packetType = rdg.readByte();
                         if (packetType == CHANNEL_CHANGE_PACKET)
                         {
-                            statusLED.setColor(getBlue());
+                            statusLED.setColor(getBlue());//was blue before
                             statusLED.setOn();
                             channel = rdg.readInt();
                             Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
@@ -371,7 +371,7 @@ public class RadioStrength extends MIDlet {
                                     
                                     System.out.println("Sent CHANNEL_CHANGE_REQUEST");
                                     
-                                    statusLED.setColor(getBlue());
+                                    statusLED.setColor(getBlue());//was blue before
                                     statusLED.setOn();
                                     pause(1000);
                                     statusLED.setOff();
@@ -388,7 +388,7 @@ public class RadioStrength extends MIDlet {
                             }
                             
                             if (!ledsInUse) {
-                                displayLevel(q, 40, -50, getBlue());
+                                displayLevel(q, 40, -50, getRed());//was blue before
                             }
                             if (q > maxQ) {
                                 maxQ = q;
@@ -432,7 +432,7 @@ public class RadioStrength extends MIDlet {
                         statusLED.setOn();
                         nothing++;
                        if (nothing > 2 * PACKETS_PER_SECOND && !ledsInUse) {
-                            displayLevel(-50, 40, -50, getBlue());  // if nothing received eventually turn off LEDs
+                            displayLevel(-50, 40, -50, getRed());  // WAS BLUE BEFORE if nothing received eventually turn off LEDs
                         }
                     }
                 }
