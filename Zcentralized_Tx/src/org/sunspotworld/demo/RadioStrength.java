@@ -36,6 +36,7 @@ public class RadioStrength extends MIDlet {
     private static final int PROBE_REPLY_PACKET     = 67;
     private static final int CHANNEL_CHANGE_REQUEST = 99;
     private static final int CHANNEL_CHANGE_PACKET  = 100;
+    private static final int DECISION_PACKET        = 105;
     private static final int HOST_PORT = 67;
     private static final int DECISION_PORT = 69;
     private static final int SAMPLE_PERIOD = 10 * 1000;  // in milliseconds
@@ -58,7 +59,7 @@ public class RadioStrength extends MIDlet {
     
     private int channel = INITIAL_CHANNEL_NUMBER;
     private int power = 32;                             // Start with max transmit power
-
+    private int i = 0;
     private boolean xmitDo = true;
     private boolean recvDo = true;
     private boolean ledsInUse = false;
@@ -74,6 +75,7 @@ public class RadioStrength extends MIDlet {
     private int requestToChange = 0;
     private int probe_flag = 0;
     private int goAhead = 0;
+    private int newChannel = 0;
     
     /**
      * Return bright or dim red.
@@ -246,17 +248,13 @@ public class RadioStrength extends MIDlet {
         synchronized(this){
             goAhead = 1;//turn for the receiver function
         }
-        
+        synchronized(this){
+            probe_flag = 0;
+        }
         // here send the packet to the server
         //-------------------------------------------------
         RadiogramConnection rCon = null;
-        RadiogramConnection repCon = null;
         Datagram forw_req = null;
-        Datagram recvd_rep = null;
-        String ourAddress = System.getProperty("IEEE_ADDRESS");
-        ILightSensor lightSensor = (ILightSensor) Resources.lookup(ILightSensor.class);
-        ITriColorLED led1 = (ITriColorLED) Resources.lookup(ITriColorLED.class, "LED7");
-        System.out.println("Starting sensor sampler application on " + ourAddress + " ...");
         // Listen for downloads/commands over USB connection
         new com.sun.spot.service.BootloaderListenerService().getInstance().start();
         try {
@@ -274,12 +272,6 @@ public class RadioStrength extends MIDlet {
         try {
            // Get the current time and sensor reading
            long now = System.currentTimeMillis();
-           int reading = lightSensor.getValue();
-           led1.setRGB(255, 255, 255); // Flash an LED to indicate a sampling event
-           displayNumber(0, getBlue());
-           led1.setOn();
-           Utils.sleep(50);
-           led1.setOff();
            // Package the time and sensor reading into a radio datagram and send it.
            //instead of this i need to send the rssi values
             forw_req.reset();
@@ -292,46 +284,60 @@ public class RadioStrength extends MIDlet {
                 forw_req.writeInt(j+24);
             }
             rCon.send(forw_req);
-           
+            try {
+                   rCon.close();
+                } catch (IOException ex) { }
             
             } catch (Exception e) {
             System.err.println("Caught " + e + " while collecting/sending sensor sample.");
             }
+         
+            
             //selectedChannel = receiveContrReply();
             //-------------------------------------------------------------
+   /*     
         try {
-            // This is the decision process for distributed system
-            /*selectedLQA = lqa[0];
-            selectedRssi = rssi[0];
-            selectedChannel = availChannels[0];
-            for(int j = 0; j < 3; j++)
-            {           
-                if(rssi[j] > selectedRssi || lqa[j] > selectedLQA)
-                {
-                    selectedRssi = rssi[j];
-                    selectedChannel = availChannels[j];
-                    selectedLQA = lqa[j];
-                }
-            }*/
+            
            repCon = (RadiogramConnection) Connector.open("radiogram://0014.4F01.0000.7FD3:" + DECISION_PORT);
-            //repCon.setMaxBroadcastHops(3);
+            repCon.setMaxBroadcastHops(3);
+           System.out.println("Established Connection with controller");
             recvd_rep = repCon.newDatagram(repCon.getMaximumLength());
         } catch (IOException ex) {
             ex.printStackTrace();
         }
         try{
+            System.out.println("Waiting to receive reply on port " + DECISION_PORT);
+            recvd_rep.reset();
             repCon.receive(recvd_rep); 
+            System.out.println("received packet from controller");
             byte packetType = recvd_rep.readByte();
+            System.out.println("The packet type read is : "+ packetType);
             selectedChannel  = recvd_rep.readInt();
             System.out.println("The reply from controller is : "+ selectedChannel);
             //displayNumber(0, getBlue());
-            
+            try {
+               repCon.close();
+              } catch (IOException ex) { System.err.println("Caught " + ex +  " while reading sensor samples."); }
            } catch (Exception e) {
                 System.err.println("Caught " + e +  " while reading sensor samples.");
-           }
+           }*/
+        
         // before returning this channel, i want the decision of the server.
             //displayNumber(0,getBlue());
-            return selectedChannel;           
+        
+        while(true)
+        {
+            synchronized(this){
+                if(newChannel != 0){
+                    selectedChannel = newChannel;
+                    newChannel = 0;
+                    break;
+                }
+            }
+            pause(1000);
+        }
+        
+         return selectedChannel;           
     }
     
     /**
@@ -399,12 +405,6 @@ public class RadioStrength extends MIDlet {
                         Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
                         statusLED.setColor(getBlue());//was blue before
                         statusLED.setOn();
-
-                        synchronized(this){
-                            //goAhead = 0;
-                            probe_flag = 0;
-                        }
-                        
                         break;
                     }
                 }
@@ -443,6 +443,7 @@ public class RadioStrength extends MIDlet {
                 while (recvDo) {
                     try {
                         rdg.reset();
+                        System.out.println("About to Receive");
                         rcvConn.receive(rdg);           // listen for a packet
                         byte packetType = rdg.readByte();
                         if (packetType == CHANNEL_CHANGE_REQUEST) {
@@ -466,6 +467,13 @@ public class RadioStrength extends MIDlet {
                                 pause(1000);
                             }
                             System.out.println("Leaving CHANNEL_CHANGE_REQUEST block");
+                        }
+                        if(packetType == DECISION_PACKET)
+                        {
+                            synchronized(this){
+                                newChannel = rdg.readInt();
+                            }
+                            System.out.println("Got DECISION_PACKET");
                         }
                         if (packetType == PROBE_REPLY_PACKET) {
                             i++;
