@@ -7,6 +7,7 @@ import com.sun.spot.io.j2me.radiogram.*;
 
 import com.sun.spot.peripheral.ota.OTACommandServer;
 import com.sun.spot.util.Utils;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.logging.Level;
@@ -17,9 +18,16 @@ import java.util.*;
 public class SendDataDemoHostApplication {
     // Broadcast port on which we listen for sensor samples
     private static final int HOST_PORT = 67;
-    private static final int DECISION_PORT = 69;
+    private static final int DECISION_PORT = 42;
     private static final int DECISION_PACKET  = 105;
     private int goAhead = 0;
+    
+    private void pause (long time) {
+        try {
+            Thread.currentThread().sleep(time);
+        } catch (InterruptedException ex) { /* ignore */ }
+    }
+    
     private void run() throws Exception {
        
         new Thread() {
@@ -129,9 +137,15 @@ public class SendDataDemoHostApplication {
                forw_rep.writeByte(DECISION_PACKET);
                forw_rep.writeInt(selectedChannel);
                dCon.send(forw_rep);
+               
              } catch (Exception e) {
                 System.err.println("Caught " + e + " while collecting/sending sensor sample.");
              }
+         pause(1000);
+         try {
+                     dCon.close();
+                    } catch (IOException ex) { }
+         
      }
     
     /**
