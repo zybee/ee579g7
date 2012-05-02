@@ -37,9 +37,10 @@ public class RadioStrength extends MIDlet {
     private static final int CHANNEL_CHANGE_REQUEST = 99;
     private static final int CHANNEL_CHANGE_PACKET  = 100;
     private static final int DECISION_PACKET        = 105;
-    private static final int HOST_PORT = 67;
-    private static final int DECISION_PORT = 69;
-    private static final int SAMPLE_PERIOD = 10 * 1000;  // in milliseconds
+    private static final int REGISTRATION_PACKET         = 101;
+    private static final int HOST_PORT              = 67;
+    private static final int DECISION_PORT          = 69;
+    private static final int SAMPLE_PERIOD          = 10 * 1000;  // in milliseconds
     
     private static final int PACKETS_PER_SECOND     = 5;
     private static final int PACKET_INTERVAL        = 1000 / PACKETS_PER_SECOND;
@@ -257,6 +258,7 @@ public class RadioStrength extends MIDlet {
         Datagram forw_req = null;
         // Listen for downloads/commands over USB connection
         new com.sun.spot.service.BootloaderListenerService().getInstance().start();
+        Spot.getInstance().getRadioPolicyManager().setChannelNumber(11);
         try {
         // Open up a broadcast connection to the host port
         // where the 'on Desktop' portion of this demo is listening
@@ -293,38 +295,7 @@ public class RadioStrength extends MIDlet {
             }
          
             
-            //selectedChannel = receiveContrReply();
-            //-------------------------------------------------------------
-   /*     
-        try {
             
-           repCon = (RadiogramConnection) Connector.open("radiogram://0014.4F01.0000.7FD3:" + DECISION_PORT);
-            repCon.setMaxBroadcastHops(3);
-           System.out.println("Established Connection with controller");
-            recvd_rep = repCon.newDatagram(repCon.getMaximumLength());
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        try{
-            System.out.println("Waiting to receive reply on port " + DECISION_PORT);
-            recvd_rep.reset();
-            repCon.receive(recvd_rep); 
-            System.out.println("received packet from controller");
-            byte packetType = recvd_rep.readByte();
-            System.out.println("The packet type read is : "+ packetType);
-            selectedChannel  = recvd_rep.readInt();
-            System.out.println("The reply from controller is : "+ selectedChannel);
-            //displayNumber(0, getBlue());
-            try {
-               repCon.close();
-              } catch (IOException ex) { System.err.println("Caught " + ex +  " while reading sensor samples."); }
-           } catch (Exception e) {
-                System.err.println("Caught " + e +  " while reading sensor samples.");
-           }*/
-        
-        // before returning this channel, i want the decision of the server.
-            //displayNumber(0,getBlue());
-        
         while(true)
         {
             synchronized(this){
@@ -346,11 +317,43 @@ public class RadioStrength extends MIDlet {
     private void xmitLoop () {
         ILed led = Spot.getInstance().getGreenLed();
         RadiogramConnection txConn = null;
+        RadiogramConnection regConn = null;
         xmitDo = true;
         
         int changeToChannel = 0;
         int request = 0;
         
+        //-------------SENDING REGISTRATION PACKET TO BASESTATION-----------
+           
+        try {
+            
+            Spot.getInstance().getRadioPolicyManager().setChannelNumber(11);
+            regConn = (RadiogramConnection)Connector.open("radiogram://0014.4F01.0000.7FD3:" + HOST_PORT);
+            regConn.setMaxBroadcastHops(3);      // don't want packets being rebroadcasted
+            Datagram reg = regConn.newDatagram(regConn.getMaximumLength());
+            System.out.println("Open connection for registration");
+            reg.reset();
+            reg.writeByte(REGISTRATION_PACKET);
+            reg.writeInt(channel);
+            System.out.println("done writing for registration");
+            regConn.send(reg);
+            System.out.println("Sent registration packet");
+            statusLED.setColor(getGreen());
+            statusLED.setOn();
+            pause(1000);
+            //statusLED.setOff();
+                            
+        } catch (IOException ex) {
+                // ignore
+        } 
+        try {
+            regConn.close();
+        } catch (IOException ex) { }
+           
+      
+                
+      //----------------------------------------------------
+        Spot.getInstance().getRadioPolicyManager().setChannelNumber(channel);
         while (xmitDo) {
             try {
                 txConn = null;
@@ -359,7 +362,8 @@ public class RadioStrength extends MIDlet {
                 Datagram xdg = txConn.newDatagram(txConn.getMaximumLength());
                 long count = 0;
                 boolean ledOn = false;               
-                                                                
+                          
+                
                 while (xmitDo) {
                     led.setOn();
                     long nextTime = System.currentTimeMillis() + PACKET_INTERVAL;
